@@ -2,39 +2,49 @@
 
 PSQL="psql --username=freecodecamp --dbnam=salon --tuples-only -c"
 
-echo -e "\n~~~ MY SALON ~~~"
+echo -e "\n~~~~~ MY SALON ~~~~~"
 
 MAIN_MENU() {
-  SERVICE_LIST=$($PSQL "SELECT service_id, name FROM services ORDER BY service_id")
-  SHOW_SERVICES
-}
-
-SHOW_SERVICES() {
   if [[ $1 ]]
   then
     echo -e "\n$1";
   else
-    echo -e "\nWelcome to My Salon, how can i help you?\n"
+    echo -e "\nWelcome to My Salon, how can i help you?"
   fi
-  echo "$SERVICE_LIST" | while IFS="|" read SERVICE_ID SERVICE_NAME
+  SERVICES_LIST=$($PSQL "SELECT service_id, name FROM services ORDER BY service_id")
+  if [[ -z $SERVICES_LIST ]]
+  then
+    echo "Sorry, we don't have any service right now"
+  else
+    SHOW_SERVICES
+  fi
+}
+
+SHOW_SERVICES() {
+  SERVICE_OUTPUT=""
+  while IFS="|" read SERVICE_ID SERVICE_NAME
   do
     SERVICE_ID=$(echo $SERVICE_ID | sed -E 's/^ *| *$//')
     SERVICE_NAME=$(echo $SERVICE_NAME | sed -E 's/^ *| *$//')
-    echo -e "$SERVICE_ID) $SERVICE_NAME"
-  done
+    SERVICE_OUTPUT=$(echo -e "$SERVICE_OUTPUT\n$SERVICE_ID) $SERVICE_NAME")
+  done <<< "$SERVICES_LIST"
+  
+  echo -e "$SERVICE_OUTPUT"
   read SERVICE_ID_SELECTED
   # check if service_id_selected is a number.
   if [[ ! $SERVICE_ID_SELECTED =~ ^[0-9]+$ ]]
   then
-    SHOW_SERVICES "I could not find that service. What would you like today?"
-  fi
-  SERVICE_NAME=$($PSQL "SELECT name FROM services WHERE service_id = $SERVICE_ID_SELECTED")
-  if [[ -z $SERVICE_NAME ]]
-  then
-    SHOW_SERVICES "I could not find that service. What would you like today?"
+    MAIN_MENU "I could not find that service. What would you like today?"
   else
-    MAKE_APPOINTMENT $SERVICE_ID_SELECTED "$SERVICE_NAME"
+    SERVICE_NAME=$($PSQL "SELECT name FROM services WHERE service_id = $SERVICE_ID_SELECTED")
+    if [[ -z $SERVICE_NAME ]]
+    then
+      MAIN_MENU "I could not find that service. What would you like today?"
+    else
+      MAKE_APPOINTMENT $SERVICE_ID_SELECTED "$SERVICE_NAME"
+    fi
   fi
+
 }
 
 MAKE_APPOINTMENT() {
